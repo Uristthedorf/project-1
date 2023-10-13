@@ -39,4 +39,6 @@ The goal of this project is to implement a "file checking" logic for the existin
 
 ## Authors
 
-Michal Young, Ram Durairajan.
+Carsten Konyn.
+
+I did the project, I was confused about how to access the file but I did it. I also didn't know that I could import inbuilt libraries which made me try using a try and except instead of a much simpler method.

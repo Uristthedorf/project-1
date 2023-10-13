@@ -15,6 +15,7 @@
 
 import config    # Configure from .ini files and command line
 import logging   # Better than print statements
+import os
 logging.basicConfig(format='%(levelname)s:%(message)s',
                     level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ def listen(portnum):
     return serversocket
 
 
-def serve(sock, func):
+def serve(sock, func, ROOT):
     """
     Respond to connections on sock.
     Args:
@@ -56,7 +57,7 @@ def serve(sock, func):
     while True:
         log.info("Attempting to accept a connection on {}".format(sock))
         (clientsocket, address) = sock.accept()
-        _thread.start_new_thread(func, (clientsocket,))
+        _thread.start_new_thread(func, (clientsocket, ROOT))
 
 
 ##
@@ -78,7 +79,7 @@ STATUS_NOT_FOUND = "HTTP/1.0 404 Not Found\n\n"
 STATUS_NOT_IMPLEMENTED = "HTTP/1.0 401 Not Implemented\n\n"
 
 
-def respond(sock):
+def respond(sock, ROOT):
     """
     This server responds only to GET requests (not PUT, POST, or UPDATE).
     Any valid GET request is answered with an ascii graphic of a cat.
@@ -90,12 +91,44 @@ def respond(sock):
     log.info("Request was {}\n***\n".format(request))
 
     parts = request.split()
+    #print(parts)
+
     if len(parts) > 1 and parts[0] == "GET":
-        transmit(STATUS_OK, sock)
-        transmit(CAT, sock)
+        #if (parts[1].find("~") != -1 or parts[1].find("..") != -1): #in
+        if ("~" in parts[1] or ".." in parts[1]):
+            transmit(STATUS_FORBIDDEN, sock)
+            transmit("403 Forbidden", sock)
+        else:
+            if os.path.isfile(ROOT + parts[1]):
+                transmit(STATUS_OK, sock)
+                file = open(ROOT + parts[1], "r")
+                fstr = file.read()
+                file.close()
+                transmit(fstr, sock)
+            else:
+                transmit(STATUS_NOT_FOUND, sock)
+                transmit("404 Not Found", sock)
+        #else:
+        #    try:
+        #        print(ROOT + parts[1])
+        #        file = open(ROOT + parts[1], r)
+        #        file.close()
+        #        print("Test3")
+        #        transmit(STATUS_OK, sock)
+        #        transmit(CAT, sock)
+        #    except:
+        #        print("Test4")
+        #        transmit(STATUS_NOT_FOUND, sock)
+
+
+
+    #if len(parts) > 1 and parts[0] == "GET":
+    #    transmit(STATUS_OK, sock)
+    #    transmit(CAT, sock)
     else:
         log.info("Unhandled request: {}".format(request))
         transmit(STATUS_NOT_IMPLEMENTED, sock)
+        transmit("401 Not Implemented", sock)
         transmit("\nI don't handle this request: {}\n".format(request), sock)
 
     sock.shutdown(socket.SHUT_RDWR)
@@ -143,7 +176,7 @@ def main():
     sock = listen(port)
     log.info("Listening on port {}".format(port))
     log.info("Socket is {}".format(sock))
-    serve(sock, respond)
+    serve(sock, respond, options.DOCROOT)
 
 
 if __name__ == "__main__":
